@@ -15,30 +15,49 @@ namespace Tajima
 {
     public partial class Form1 : Form
     {
+        // -------------------------------------------
+        // Attributes
+        // -------------------------------------------
 
+        /// <summary>
+        /// The results lines are stored here.
+        /// </summary>
         private ConcurrentBag<string> results;
+
+
+        // -------------------------------------------
+        // Methods
+        // -------------------------------------------
 
         public Form1()
         {
             InitializeComponent();
-            results = new ConcurrentBag<string>();
+          
         }
 
+        /// <summary>
+        /// Called when the button is pressed.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void ExamineButton_Click(object sender, EventArgs e)
         {
-            
-            // Abre el dialogo de selección de archivo
+            results = new ConcurrentBag<string>();
+
+            // Opens the select directory Dialog
             if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
             {
                 string path = folderBrowserDialog1.SelectedPath;
+                label2.Text = "carpeta " + path + " seleccionada. Ejecución en curso...";
+                label2.Refresh();
                 string[] directoriesInDirectory = Directory.GetDirectories(path);
 
+                // Read the folders in parallel
                 Parallel.ForEach(directoriesInDirectory, (directoryPath) =>
                 {
+                    // The file of interest is the only xml file in the folder.
                     string  simulationResultsPath = Directory.GetFiles(directoryPath, "*.xml")[0];
-
                     StringBuilder result = new StringBuilder();
-                    //result.Append(simulationResultsPath); result.Append(";");
                     int counter = 0;
                     string line; 
                     StreamReader file = new StreamReader(simulationResultsPath);
@@ -47,30 +66,27 @@ namespace Tajima
                         if (line.Contains("Tajima's"))
                             counter++;
 
-                        if(counter == 7) // The line of interest is the 7th repetition
+                        if(counter == 7) // The line of interest is the 8th repetition
                         {
-
-                            MatchCollection matches = Regex.Matches(line, @"-*[0-9,\.]+");
-                            
+                            // File line example:             
+                            //           Tajima's D    -0.35637    -0.31302    -0.33470     0.03065 
+                            // This regex matchs all numbers on the line.
+                            MatchCollection matches = Regex.Matches(line, @"-*[0-9,\.]+");                           
                             foreach (Match match in matches)
                             {
-                                //Console.WriteLine(match);
-                                result.Append(match); result.Append(";");
+                                result.Append(match); result.Append(";"); // Output file is a csv file that uses ; as separator.
                             }
-
                             break;
                         }                               
                     }
 
                     file.Close();
-                    results.Add((result.ToString()));
+                    results.Add(result.ToString());
                  });
-
+                
+                // Output file is a csv file that uses ; as separator.
                 File.WriteAllLines("ResultadosCondensados.csv", results.ToArray());
-
-
-
-
+                label2.Text = "Ejecución terminada con éxito. " + directoriesInDirectory.Length + " archivos leidos.";
 
             }
         }
